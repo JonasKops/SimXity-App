@@ -1,0 +1,60 @@
+# Node
+node_modules/
+
+# React Native
+android/app/build/
+android/.gradle/
+ios/Pods/
+ios/build/
+
+# Build outputs
+build/
+dist/
+
+# Misc
+.expo/
+.webpack/
+.env
+.env.*
+
+# macOS
+.DS_Store
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Android
+*.iml
+.gradle/
+local.properties
+
+# Xcode
+*.xcworkspace
+!ios/Eduma.xcworkspace/contents.xcworkspacedata
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+
+# Certificates
+*.p12
+*.jks
+
+# JetBrains
+.idea/
+
+# VSCode
+.vscode/
+
+# Misc
+coverage/
+report/
+
+# Ignore build artifacts from metro
+.expo/*
+
+# Temporary files
+*.tmp
+*.swp

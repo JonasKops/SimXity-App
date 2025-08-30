@@ -1,0 +1,250 @@
+before_all do
+  ENV['RN_DISPLAY_NAME']='Learnpress'
+  ENV['RN_PACKAGE_NAME']="com.eduma.app"
+  ENV['RN_APP_IDENTIFIER']="com.eduma.app"
+  ENV['RN_DEVELOPER_TEAM']="3D255JM5Q7"
+  ENV['RN_KEY_ID']="75DUL72U43"
+  ENV['RN_ISSUER_ID']="db492a3e-84c2-4c4c-8d18-8e25281e9e94"
+  ENV['RN_KEY_PATH_FILE_NAME']="AuthKey_75DUL72U43"
+  ENV['TEMP_KEYCHAIN_USER']="nhamdv"
+  ENV['TEMP_KEYCHAIN_PASSWORD']="nhamdv"
+  ENV['RN_GIT_URL']="https://Nhamdv95@bitbucket.org/thimpress/lp-mobile.git"
+  ENV['RN_GIT_BRANCH']="develop"
+  ENV['MATCH_PASSWORD']="EdumaApp"
+  ENV['FASHLANE_IOS']="hieuvuminh/Eduma"
+  ENV['FASHLANE_ANDROID']="hieuvuminh/Eduma-Android"
+
+  ensure_git_branch(
+    branch: ENV['RN_GIT_BRANCH']
+  )
+  # ensure_git_status_clean
+  # git_pull
+end
+
+def delete_temp_keychain(name)
+  delete_keychain(
+    name: name
+  ) if File.exist? File.expand_path("~/Library/Keychains/#{name}-db")
+end
+
+def create_temp_keychain(name, password)
+  create_keychain(
+    name: name,
+    password: password,
+    unlock: false,
+    timeout: 0
+  )
+end
+
+def ensure_temp_keychain(name, password)
+  delete_temp_keychain(name)
+  create_temp_keychain(name, password)
+end
+
+platform :ios do
+  private_lane :update_version do
+    app_store_version = get_app_store_version_number(bundle_id: 'com.eduma.app')
+    plist_version = get_version_number_from_xcodeproj(xcodeproj: './ios/Eduma.xcodeproj')
+    if Gem::Version.new(plist_version.to_f) == Gem::Version.new(app_store_version.to_f)
+        UI.message "bumping minor"
+        increment_version_number_in_xcodeproj(xcodeproj: './ios/Eduma.xcodeproj', bump_type: 'minor')
+    else
+        UI.message "bumping patch"
+        increment_version_number_in_xcodeproj(xcodeproj: './ios/Eduma.xcodeproj', bump_type: 'patch')
+    end
+  end
+
+  private_lane :staging_build do
+    increment_build_number_in_xcodeproj(xcodeproj: './ios/Eduma.xcodeproj', target: 'Eduma')
+    gym(scheme: 'Eduma', workspace: './ios/Eduma.xcworkspace', xcargs: "-allowProvisioningUpdates -authenticationKeyIssuerID #{ENV['RN_ISSUER_ID']} -authenticationKeyID #{ENV['RN_KEY_ID']} -authenticationKeyPath #{File.expand_path("../../fastlane/#{ENV['RN_KEY_PATH_FILE_NAME']}.p8", __FILE__)}")
+  end
+
+  private_lane :release_build do
+    increment_build_number_in_xcodeproj(xcodeproj: './ios/Eduma.xcodeproj', target: 'Eduma')
+    gym(scheme: 'Eduma', workspace: './ios/Eduma.xcworkspace')
+  end
+
+  lane :beta do
+    keychain_name = ENV['TEMP_KEYCHAIN_USER']
+    keychain_password = ENV['TEMP_KEYCHAIN_PASSWORD']
+    ensure_temp_keychain(keychain_name, keychain_password)
+
+    api_key = app_store_connect_api_key(
+      key_id: ENV['RN_KEY_ID'],
+      issuer_id: ENV['RN_ISSUER_ID'],
+      key_filepath: "./fastlane/#{ENV['RN_KEY_PATH_FILE_NAME']}.p8",
+      duration: 1200, # optional (maximum 1200)
+      in_house: false # optional but may be required if using match/sigh
+    )
+
+    match(
+      type: 'appstore',
+      app_identifier: ENV['RN_APP_IDENTIFIER'],
+      keychain_name: keychain_name,
+      keychain_password: keychain_password,
+      api_key: api_key,
+      git_url: ENV['RN_GIT_URL'],
+      git_branch: ENV['RN_GIT_BRANCH'],
+      clone_branch_directly: true
+    )
+
+    staging_build
+    pilot(api_key: api_key)
+    # upload_to_testflight(username: 'contact@visiochef.com', app_identifier: ENV['RN_APP_IDENTIFIER'])
+    delete_temp_keychain(keychain_name)
+    clean_build_artifacts
+    commit_version_bump(message: 'bump build', xcodeproj: './ios/Eduma.xcodeproj')
+    push_to_git_remote
+  end
+
+  # lane :release do
+  #   release_build
+  #   # screenshots
+  #   # deliver
+  #   clean_build_artifacts
+  #   commit_version_bump(message: 'bump build', xcodeproj: './ios/Eduma.xcodeproj')
+  #   push_to_git_remote
+  # end
+
+  lane :rename do
+    update_info_plist(
+      plist_path: './Eduma/Info.plist',
+      xcodeproj: './ios/Eduma.xcodeproj',
+      display_name: ENV['RN_DISPLAY_NAME'],
+    )
+    update_app_identifier(
+      xcodeproj: './ios/Eduma.xcodeproj',
+      plist_path: './Eduma/Info.plist',
+      app_identifier: ENV['RN_APP_IDENTIFIER']
+    )
+  end
+
+  lane :update_team do
+    update_project_team(
+      path: './ios/Eduma.xcodeproj',
+      teamid: ENV['RN_DEVELOPER_TEAM']
+    )
+  end
+
+  lane :add_icon do
+    appicon(
+      appicon_image_file: 'fastlane/metadata/app_icon.png',
+      appicon_devices: [:ipad, :iphone, :ios_marketing],
+      appicon_path: './ios/Assets.xcassets',
+    )
+  end
+end
+
+platform :android do
+  desc "Android build and release to beta"
+  lane :beta do
+      increment_version_code(gradle_file_path: './android/app/build.gradle')
+      gradle(task: 'clean', project_dir: './android/')
+      gradle(task: 'bundle', build_type: 'Release', project_dir: './android')
+      commit_android_version_bump(
+        app_folder_name:'./android/app'
+      )
+      # supply(track: 'beta', aab: './android/app/build/outputs/bundle/release/app-release.aab')
+  end
+
+  lane :release do
+      increment_version_code(gradle_file_path: './android/app/build.gradle')
+      increment_version_name(gradle_file_path: './android/app/build.gradle')
+      gradle(task: 'clean', project_dir: './android/')
+      gradle(task: 'bundle', build_type: 'Release', project_dir: './android')
+      commit_android_version_bump(
+        app_folder_name:'./android/app'
+      )
+      # supply(track: 'production', aab: './android/app/build/outputs/bundle/release/app-release.aab', release_status: 'draft')
+  end
+
+  lane :rename do
+    rename_android_package(
+      path: "./android",
+      package_name: "com.eduma",
+      new_package_name: ENV['RN_PACKAGE_NAME']
+    )
+    update_android_strings(
+      block: lambda { |strings|
+        strings['app_name'] = ENV['RN_DISPLAY_NAME']
+      }
+    )
+  end
+
+  lane :add_icon do
+    android_appicon(
+      appicon_image_file: 'fastlane/metadata/app_icon.png',
+      appicon_icon_types: [:launcher],
+      appicon_path: './android/app/src/main/res/mipmap'
+    )
+  end
+end
+
+lane :codepush_ios do |options|
+  current_version = get_version_number(xcodeproj: './ios/Eduma.xcodeproj', target: 'Eduma')
+  CODEPUSH_APP = ENV['FASHLANE_IOS']
+  codepush(app_name: CODEPUSH_APP, current_version: current_version, manditory: options[:manditory])
+end
+
+lane :codepush_android do |options|
+  current_version = get_version_name(gradle_file_path: './android/app/build.gradle')
+  CODEPUSH_APP = ENV['FASHLANE_ANDROID']
+  codepush(app_name: CODEPUSH_APP, current_version: current_version, manditory: options[:manditory])
+end
+
+private_lane :select_codepush_environment do |options|
+  available_environments = fetch_codepush_environments(app_name: options[:app_name])
+  environment_labels = available_environments.map{|e| e.fetch('name')}
+  UI.select("What environment do you want to target?", environment_labels)
+end
+
+private_lane :fetch_codepush_environments do |options|
+  FETCH_ENV_COMMAND = "appcenter codepush deployment list -a APPNAME --output json"
+  UI.message "Fetching Codepush environments for #{options[:app_name]}"
+
+  sh FETCH_ENV_COMMAND.sub(/APPNAME/, options[:app_name]) do |status, result, command|
+    unless status.success?
+      UI.error "Command #{command} failed with status #{status.exitstatus}. Are you logged in via `appcenter login`?"
+    end
+
+    JSON.parse(result)
+  end
+end
+
+private_lane :select_app_version do |options|
+  current_version = options[:current_version]
+  current_major = [current_version.split(".").first, 'x', 'x'].join('.')
+  current_minor = current_version.split('.').slice(0,2).push('x').join('.')
+  target_version_label = UI.select("What version do you want to target?", [
+      "All users",
+      "Most recent major (#{current_major})",
+      "Most recent minor (#{current_minor})",
+      "Current version (#{current_version})"
+  ])
+
+  next "\"*\"" if target_version_label.match(/All/)
+  next current_major if target_version_label.match(/major/)
+  next current_minor if target_version_label.match(/minor/)
+
+  current_version
+end
+
+lane :codepush do |options|
+  manditory = !!options[:manditory]
+  manditory_string = manditory ? " -m" : ""
+  environment = select_codepush_environment(app_name: options[:app_name])
+  version = select_app_version(current_version: options[:current_version])
+
+  if UI.confirm("Going to CodePush #{version} to production. Feeling lucky punk?")
+      Dir.chdir("..") do
+          sh "appcenter codepush release-react -a #{options[:app_name]} -d #{environment} -t #{version}#{manditory_string}" do |status, result, command|
+          unless status.success?
+              UI.error "Command #{command} failed with status #{status.exitstatus}"
+          end
+          UI.message "🚀 All done! Check out the release on App center."
+      end
+      end
+  else
+      UI.error "Not going to push"
+  end
+end
