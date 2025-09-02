@@ -116,8 +116,21 @@ export default {
   },
   myCertificateDetails: {
     title: 'Certificate',
-	date: 'Date:',	
+	  date: 'Date:',
+    download: {
+      download: 'Download',	
+      title: 'File Access',
+      message: 'App needs access to save the file.',
+      buttonNeutral: 'Later',
+      buttonNegative: 'Cancel',
+      buttonPositive: 'OK',
+      permissionDenied: 'Permission denied',
+      downloadSuccessful: 'Download successful',
+      fileSavedAs: 'File saved as',
+
+    }
   },
+
   wishlist: {
     title: 'My Wishlist',
   },

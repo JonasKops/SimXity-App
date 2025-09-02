@@ -1,6 +1,7 @@
 import {tronLog} from '../common';
 import {Alert} from 'react-native';
 import {SITE_URL} from '../config';
+import {SITE_URL2} from 'app-config';
 import {navigate} from '../navigations/navigations';
 import {store} from '../index';
 import {saveUserToken, setUser, setOverview} from '../actions/user';
@@ -55,6 +56,38 @@ const onResponse = async (request, result) => {
 };
 
 const config = {
+
+  get2: async (endpoint, params = {}, randomVersion = true) => {
+    const queryParam = {...params};
+
+    if (randomVersion) {
+      queryParam.v = Math.floor(Math.random() * 999999999);
+    }
+
+    let url = `${SITE_URL2}${endpoint}`;
+
+    if (Object.keys(queryParam).length > 0) {
+      url += `?${Object.keys(queryParam)
+        .map(key => `${key}=${queryParam[key]}`)
+        .join('&')}`;
+    }
+
+    console.log(url);
+  
+    const options = {
+      method: 'GET',
+      headers: HEADERS,
+    };
+
+    const request = {url, options};
+
+    return callRequestWithTimeOut(
+      fetch(url, options).then(result => onResponse(request, result)),
+    );
+  },
+
+
+
   get: async (endpoint, params = {}, randomVersion = true) => {
     const queryParam = {...params};
 
