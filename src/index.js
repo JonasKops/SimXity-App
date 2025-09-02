@@ -8,6 +8,7 @@ import SplashScreen from 'react-native-splash-screen';
 import NetInfo from '@react-native-community/netinfo';
 import codePush from 'react-native-code-push';
 import notifee, {EventType, AuthorizationStatus} from '@notifee/react-native';
+import messaging from '@react-native-firebase/messaging';
 import './config/translations';
 import RootScreen from './screens/root';
 import configStore from './store/index';
@@ -19,6 +20,7 @@ import DEEP_LINKING from './navigations/deeplinking';
 import {CODE_PUSH} from './config';
 import {navigationRef, navigate} from './navigations/navigations';
 import NotificationModal from './component/common/notification-modal';
+import { registerFCMToken } from './common';
 
 const {store, persistor} = configStore();
 
@@ -44,6 +46,43 @@ const MyApp = () => {
 
       await onNotification();
     })();
+
+    // Create Android notification channel for notifee
+    (async () => {
+      try {
+        if (Platform.OS === 'android') {
+          await notifee.createChannel({
+            id: 'default',
+            name: 'Default',
+            importance: 4, // HIGH
+          });
+        }
+      } catch (e) {
+        console.log('createChannel error', e);
+      }
+    })();
+
+    // Foreground message handler (show notification when app is in foreground)
+    const unsubscribeOnMessage = messaging().onMessage(async remoteMessage => {
+      try {
+        await notifee.displayNotification({
+          title: remoteMessage.notification?.title || remoteMessage?.data?.title,
+          body: remoteMessage.notification?.body || remoteMessage?.data?.body,
+          android: { channelId: 'default' },
+        });
+
+        try {
+          notifee.incrementBadgeCount(1);
+        } catch (e) {}
+      } catch (e) {
+        console.log('onMessage error', e);
+      }
+    });
+
+    return () => {
+      // cleanup
+      unsubscribeOnMessage && unsubscribeOnMessage();
+    };
   }, []);
 
   async function onNotification() {
@@ -107,6 +146,28 @@ const MyApp = () => {
 
     if (user?.token) {
       setToken(user?.token);
+
+      // For Android, register FCM token and listen for token refresh
+      if (Platform.OS === 'android') {
+        try {
+          await registerFCMToken();
+        } catch (e) {
+          console.log('registerFCMToken on startup error', e);
+        }
+
+        // Re-register when FCM token is refreshed
+        try {
+          messaging().onTokenRefresh(async () => {
+            try {
+              await registerFCMToken();
+            } catch (err) {
+              console.log('onTokenRefresh register error', err);
+            }
+          });
+        } catch (e) {
+          console.log('messaging onTokenRefresh setup error', e);
+        }
+      }
     }
   };
 

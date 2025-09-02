@@ -29,6 +29,8 @@ class Login extends PureComponent {
       showPassword: false,
     };
     this.backHandler = null;
+    // timers used to simulate incoming push notifications for presentation
+    this._fakeNotificationTimers = [];
   }
 
   componentDidMount() {
@@ -42,16 +44,68 @@ class Login extends PureComponent {
     if (this.backHandler) {
       this.backHandler.remove();
     }
+    // clear any pending fake notification timers on unmount
+    this._fakeNotificationTimers.forEach(timer => clearTimeout(timer));
+    this._fakeNotificationTimers = [];
   }
 
-  handleBackPress = () => {
-    this.onBack();
-    return true;
+  // Generate 20 fake certificates. Some will be expiring soon (within 1..10 days).
+  generateFakeCertificates = userId => {
+    const certificates = [];
+    const now = Date.now();
+    for (let i = 0; i < 20; i++) {
+      // give some certs near-expiry and others later
+      const daysToExpire = i < 8 ? (1 + (i % 10)) : (30 + (i % 180));
+      const expiresAt = new Date(now + daysToExpire * 24 * 60 * 60 * 1000).toISOString();
+      certificates.push({
+        id: `cert-${userId}-${i + 1}`,
+        title: `Certificate ${i + 1}`,
+        expiresAt,
+      });
+    }
+    return certificates;
   };
 
-  onRegister = () => {
-    const {navigation} = this.props;
-    navigation.navigate('RegisterScreen');
+  // Simulate push notifications for certificates that are expiring soon.
+  // Emits DeviceEventEmitter events and schedules a few repeated notifications for presentation.
+  simulatePushNotifications = certificates => {
+    const soonThresholdDays = 7;
+    const now = Date.now();
+    const soonCerts = certificates.filter(cert => {
+      const diffDays = (new Date(cert.expiresAt).getTime() - now) / (24 * 60 * 60 * 1000);
+      return diffDays <= soonThresholdDays;
+    });
+
+    if (soonCerts.length > 0) {
+      // immediate in-app alert to demonstrate notification summary
+      Alert.alert(
+        'Certificates expiring soon',
+        `${soonCerts.length} certificate(s) will expire within ${soonThresholdDays} days.`
+      );
+      // emit a single event so other screens/components can react
+      DeviceEventEmitter.emit('fakeCertificatesExpiring', {count: soonCerts.length, items: soonCerts});
+    }
+
+    // Schedule a few simulated incoming notifications (for presentation)
+    // They will fire a few seconds apart so the presenter can see multiple notifications.
+    soonCerts.slice(0, 6).forEach((cert, idx) => {
+      const delayMs = 2000 + idx * 3000; // 2s, 5s, 8s, ...
+      const timer = setTimeout(() => {
+        const payload = {
+          title: 'Certificate expiring',
+          message: `${cert.title} expires on ${new Date(cert.expiresAt).toLocaleDateString()}`,
+          cert,
+        };
+        console.log('Simulated push notification:', payload);
+        DeviceEventEmitter.emit('pushNotificationReceived', payload);
+        // also show a lightweight Alert for demo (avoid too many alerts)
+        if (idx === 0) {
+          // only show alert for the first one to avoid spamming
+          Alert.alert(payload.title, payload.message);
+        }
+      }, delayMs);
+      this._fakeNotificationTimers.push(timer);
+    });
   };
 
   validate() {
@@ -78,52 +132,62 @@ class Login extends PureComponent {
 
     dispatch(setLoading(true));
 
-    const {username, password} = this.state;
+    try {
+      const {username, password} = this.state;
 
-    const params = {
-      username,
-      password,
-    };
+      const params = {
+        username,
+        password,
+      };
 
-    const response = await Client.login(params);
+      const response = await Client.login(params);
 
-    if (response && response?.token) {
-      dispatch(saveUserToken(response.token));
-      dispatch(setUser(response));
-      setToken(response.token);
+      if (response && response?.token) {
+        dispatch(saveUserToken(response.token));
+        dispatch(setUser(response));
+        setToken(response.token);
 
-      const {navigation, route} = this.props;
-console.log("ID " + response.user_id) ;
-      if (route.params?.screen) {
-        const responseUser = await Client.getUser(response.user_id);
-        dispatch(setUser(responseUser));
-        if (
-          route.params?.screen === 'CoursesDetailsScreen' &&
-          route.params?.id
-        ) {
-          navigation.navigate('CoursesDetailsScreen', {
-            id: route.params.id,
-          });
+        const {navigation, route} = this.props;
+        console.log('ID ' + response.user_id);
+        if (route.params?.screen) {
+          const responseUser = await Client.getUser(response.user_id);
+          dispatch(setUser(responseUser));
+          if (
+            route.params?.screen === 'CoursesDetailsScreen' &&
+            route.params?.id
+          ) {
+            navigation.navigate('CoursesDetailsScreen', {
+              id: route.params.id,
+            });
+          } else {
+            navigation.navigate(route.params.screen);
+          }
         } else {
-          navigation.navigate(route.params.screen);
+          navigation.reset({
+            index: 0,
+            routes: [{name: 'HomeTabScreen'}],
+          });
         }
+
+        DeviceEventEmitter.emit('notificationReceived');
+        // --- Presentation-only: simulate user's certificates and in-app "push" notifications ---
+        // We can't access backend now, so create fake certificates and simulate notifications.
+        const fakeCertificates = this.generateFakeCertificates(response.user_id);
+        this.simulatePushNotifications(fakeCertificates);
+        // -------------------------------------------------------------------------------------
+      } else if (response && response.code && response.code.includes('incorrect_password')) {
+        Alert.alert('', t('loginScreen.passwordNotCorrect'));
+      } else if (response && response.code && response.code.includes('invalid_username')) {
+        Alert.alert('', t('loginScreen.usernameNotCorrect'));
       } else {
-        navigation.reset({
-          index: 0,
-          routes: [{name: 'HomeTabScreen'}],
-        });
+        Alert.alert('', t('loginScreen.notFound'));
       }
-
-      DeviceEventEmitter.emit('notificationReceived');
-    } else if (response.code.includes('incorrect_password')) {
-      Alert.alert('', t('loginScreen.passwordNotCorrect'));
-    } else if (response.code.includes('invalid_username')) {
-      Alert.alert('', t('loginScreen.usernameNotCorrect'));
-    } else {
+    } catch (e) {
+      console.log('onLogin error', e);
       Alert.alert('', t('loginScreen.notFound'));
+    } finally {
+      dispatch(setLoading(false));
     }
-
-    dispatch(setLoading(false));
   };
 
   onBack = () => {
