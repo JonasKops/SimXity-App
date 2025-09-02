@@ -150,17 +150,15 @@ const Client = {
       ...params,
     }),
 	
-  getCertificates: (id, params) =>
+  _getCertificates: (id, params) =>
     config.get(`/wp-json/simxity/v1/certificates/${id}`, {
       ...params
     }),	
 
-  _getCertificates: (id, params) =>
-
-    config.get(`:8080/simxity/api/certificates/filter/41`, {
-      ...params
+  getCertificates: (id, params) =>
+    config.get2(`:8081/simxity/api/certificates/filter/${id}`, {  
+       ...params
     }),	
-
 };
 
 export default Client;

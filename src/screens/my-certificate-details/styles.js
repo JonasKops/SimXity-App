@@ -125,6 +125,10 @@ export default StyleSheet.create({
   },
   content2: {
     padding: 16,
+    flex: 1,
+    justifyContent: 'center', 
+    alignItems: 'center',
+    backgroundColor: '#FFF', // zum Debuggen, damit du siehst wo der Container ist
   },
   icon: {
     width: 21,
@@ -369,4 +373,5 @@ export default StyleSheet.create({
     justifyContent: 'space-between',
     marginHorizontal: 20,
   },
+
 });

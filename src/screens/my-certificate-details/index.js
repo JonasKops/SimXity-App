@@ -1,12 +1,12 @@
 import React, {Component} from 'react';
 import {
   Text,
-  Button,
   View,
   Image,
   BackHandler,
   TouchableOpacity,
   PermissionsAndroid,
+  Pressable,
   Platform, 
   Alert
 } from 'react-native';
@@ -14,6 +14,7 @@ import FastImage from 'react-native-fast-image';
 import {withTranslation} from 'react-i18next';
 import i18n from '../../config/translations';
 import {Images} from 'app-assets';
+import IconF from 'react-native-vector-icons/Feather';
 import {connect} from 'react-redux';
 import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 import styles from './styles';
@@ -112,21 +113,20 @@ class CertificateDetails extends Component {
           ? `${RNFS.DownloadDirectoryPath}/${fileName}` // Android → Downloads
           : `${RNFS.DocumentDirectoryPath}/${fileName}`; // iOS → App-Verzeichnis
 
-      // Android: Speicherberechtigung einholen
       if (Platform.OS === 'android') {
         const granted = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
           {
-            title: 'Dateizugriff',
-            message: 'App benötigt Zugriff zum Speichern der Datei.',
-            buttonNeutral: 'Später',
-            buttonNegative: 'Abbrechen',
-            buttonPositive: 'OK',
+            title: i18n.t('myCertificateDetails.download.title'),
+            message: i18n.t('myCertificateDetails.download.message'),
+            buttonNeutral: i18n.t('myCertificateDetails.download.buttonNeutral'),
+            buttonNegative: i18n.t('myCertificateDetails.download.buttonNegative'),
+            buttonPositive: i18n.t('myCertificateDetails.download.buttonPositive'),
           }
         );
 
         if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-          Alert.alert('Berechtigung verweigert');
+          Alert.alert(i18n.t('myCertificateDetails.download.permissionDenied'));  
           return;
         }
       }
@@ -137,7 +137,8 @@ class CertificateDetails extends Component {
       }).promise;
 
       if (downloadResult.statusCode === 200) {
-        Alert.alert('Download erfolgreich', `Datei gespeichert unter:\n${destPath}`);
+                                                                              
+        Alert.alert(i18n.t('myCertificateDetails.download.downloadSuccessful'), `${i18n.t('myCertificateDetails.download.fileSavedAs')}: \n${destPath}`);
       } else {
         Alert.alert('Fehler beim Download', `Status Code: ${downloadResult.statusCode}`);
       }
@@ -199,35 +200,32 @@ class CertificateDetails extends Component {
               
               </Text>
             </View>
-            { /*<Image
-              source={Images.backgroundBanner}
-              style={{position: 'absolute', bottom: 0, width: '100%'}}
-            />*/}
           </FastImage>
 		  
-          <View style={styles.content2}>   
-            {course ? (
-              <>               
-                <Button title="PNG herunterladen" onPress={this.downloadImage} />
+            <View style={styles.content2}>   
+              {course ? (
+                <>    
+                <Pressable
+                  onPress={() => this.downloadImage()}
+                  style={({ pressed }) => [
+                    {
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      padding: 12,
+                      borderRadius: 12,
+                      backgroundColor: pressed ? '#0056b3' : '#007BFF', 
+                    },
+                  ]}
+                >
+                  <IconF name="download" size={22} color="#fff" />
+                  <Text style={{ color: '#fff', marginLeft: 10 }}>
+                    {i18n.t('myCertificateDetails.download.download')}
+                  </Text>
+                </Pressable>
 
-               {/*<Text style={styles.txtTitle}>
-                  {course}
-                </Text>	
-                <View style={styles.item}>
-                    <Text style={styles.txtTitle}>
-                      {i18n.t('myCertificateDetails.date')}
-                    </Text>
-                    <Text style={styles.txtTitle}>
-                      {date.slice(0, 10).replace(/-/g, '/')}
-                    </Text>						           
-                </View>  
-                */}
-              </>
-            ) : null}
-	
-            <View style={styles.line} />
-
-          </View>
+                </>
+              ) : null}
+            </View>
         </KeyboardAwareScrollView>
 
       </View>
