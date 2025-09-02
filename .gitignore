@@ -56,7 +56,11 @@ Thumbs.db
 fastlane/report.xml
 fastlane/Preview.html
 
-# Yarn v2+
+# Yarn cache and install state (explicitly ignore to match the other copy)
+.yarn/cache/
+.yarn/install-state.gz
+
+# Yarn v2+ keep exceptions
 .yarn/*
 !.yarn/patches
 !.yarn/releases
