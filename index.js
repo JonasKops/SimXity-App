@@ -24,37 +24,59 @@ if (TextInput.defaultProps == null) {
 TextInput.defaultProps.allowFontScaling = false;
 
 // Register background message handler to show notifications when app is in background/killed
-messaging().setBackgroundMessageHandler(async remoteMessage => {
-  try {
-    if (!remoteMessage) return;
+try {
+  // messaging() can throw if native Firebase isn't configured. Guard the call.
+  const fbMessaging = typeof messaging === 'function' ? messaging() : null;
+  if (fbMessaging && typeof fbMessaging.setBackgroundMessageHandler === 'function') {
+    fbMessaging.setBackgroundMessageHandler(async remoteMessage => {
+      try {
+        if (!remoteMessage) return;
 
-    await notifee.displayNotification({
-      title: remoteMessage.notification?.title || remoteMessage?.data?.title,
-      body: remoteMessage.notification?.body || remoteMessage?.data?.body,
-      android: {
-        channelId: 'default',
-      },
+        await notifee.displayNotification({
+          title: remoteMessage.notification?.title || remoteMessage?.data?.title,
+          body: remoteMessage.notification?.body || remoteMessage?.data?.body,
+          android: {
+            channelId: 'default',
+          },
+        });
+
+        try {
+          notifee.incrementBadgeCount(1);
+        } catch (e) {
+          // ignore badge errors on devices that don't support it
+        }
+      } catch (e) {
+        console.log('backgroundMessageHandler error', e);
+      }
     });
-
-    try {
-      notifee.incrementBadgeCount(1);
-    } catch (e) {
-      // ignore badge errors on devices that don't support it
-    }
-  } catch (e) {
-    console.log('backgroundMessageHandler error', e);
+  } else {
+    console.log('Firebase messaging not available - skipping background message handler');
   }
-});
+} catch (e) {
+  console.log('Failed to register Firebase background message handler', e);
+}
 
 // Background Event Listener
-notifee.onBackgroundEvent(async ({type, detail}) => {
-  const {notification, pressAction} = detail;
+try {
+  if (notifee && typeof notifee.onBackgroundEvent === 'function') {
+    notifee.onBackgroundEvent(async ({type, detail}) => {
+      const {notification, pressAction} = detail;
 
-  if (type === EventType.ACTION_PRESS) {
-    await notifee.cancelNotification(notification.id);
+      if (type === EventType.ACTION_PRESS) {
+        await notifee.cancelNotification(notification.id);
 
-    notifee.decrementBadgeCount(1);
+        try {
+          notifee.decrementBadgeCount(1);
+        } catch (e) {
+          // ignore
+        }
+      }
+    });
+  } else {
+    console.log('notifee.onBackgroundEvent not available - skipping');
   }
-});
+} catch (e) {
+  console.log('Failed to register notifee background event listener', e);
+}
 
 AppRegistry.registerComponent(appName, () => App);
