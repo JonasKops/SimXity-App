@@ -1,32 +1,34 @@
 import { Platform } from 'react-native';
-//import messaging from '@react-native-firebase/messaging';
+import messaging from '@react-native-firebase/messaging';
 import Client from '../../api/client';
-//import { setFCMToken } from '../../actions/user';
+import { setFCMToken } from '../../actions/user';
 import { store } from '../../index';
 
 export async function registerFCMToken() {
   const { user } = store.getState();
 
   try {
-    // Check user is login
-    //if (!user?.token) return;
+    // Check user is logged in
+    if (!user?.token) return;
 
-    // Register the device with FCM
-    //await messaging().registerDeviceForRemoteMessages();
+    // Ensure device is registered for remote messages
+    await messaging().registerDeviceForRemoteMessages();
 
-    // Get the token
-    //const token = await messaging().getToken();
+    // Get the FCM token for this device
+    const token = await messaging().getToken();
+    if (!token) return;
 
-    // Check token in store and token device is same
-    //if (user?.fcmToken === token) return;
+    // If token unchanged, nothing to do
+    if (user?.fcmToken === token) return;
 
-    //store.dispatch(setFCMToken(token));
+    // Persist token in redux store
+    store.dispatch(setFCMToken(token));
 
     // Save token to server
-    //await Client.registerFCMToken({
-    //  device_token: token,
-    //  device_type: Platform.OS === 'ios' ? 'ios' : 'android',
-    //});
+    await Client.registerFCMToken({
+      device_token: token,
+      device_type: Platform.OS === 'ios' ? 'ios' : 'android',
+    });
   } catch (error) {
     console.log('registerFCMTokenError', error);
   }
@@ -36,23 +38,27 @@ export async function deleteFCMToken() {
   const { user } = store.getState();
 
   try {
-    // Check user is login
-   // if (!user?.token) {
-   //   throw new Error('User is null');
-   // }
+    // Check user is logged in
+    if (!user?.token) {
+      throw new Error('User is null');
+    }
 
-    //if (!user?.fcmToken) {
-    //  throw new Error('FCMToken is null');
-   // }
+    if (!user?.fcmToken) {
+      throw new Error('FCMToken is null');
+    }
 
-    // Delete the device with FCM
-    //await messaging().unregisterDeviceForRemoteMessages();
+    // Delete token locally on device
+    await messaging().deleteToken();
+    // Optional: unregister device for remote messages
+    await messaging().unregisterDeviceForRemoteMessages();
 
-    //await Client.deleteFCMToken({
-    //  device_token: user?.fcmToken,
-    //});
+    // Remove token from server
+    await Client.deleteFCMToken({
+      device_token: user?.fcmToken,
+    });
 
-    //store.dispatch(setFCMToken(null));
+    // Clear token in redux store
+    store.dispatch(setFCMToken(null));
   } catch (error) {
     console.log('deleteFCMTokenError', error);
   }

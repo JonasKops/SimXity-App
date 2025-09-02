@@ -1,60 +1,85 @@
 # Node
 node_modules/
 
-# React Native
-android/app/build/
+# React Native / build
 android/.gradle/
+android/app/build/
+android/build/
+android/.cxx/
 ios/Pods/
 ios/build/
+ios/DerivedData/
+# Xcode workspace user data
+*.xcworkspace
+xcuserdata/
+*.xcuserstate
+DerivedData/
 
-# Build outputs
-build/
-dist/
+# CocoaPods
+Pods/
 
-# Misc
+# Gradle
+.gradle/
+
+# Expo
 .expo/
-.webpack/
-.env
-.env.*
+.expo-shared/
 
-# macOS
-.DS_Store
+# Bundles / caches
+*.jsbundle
+*.map
+*.keystore
 
-# Logs
+# Metro / haste
+*.hastemap
+metro-cache/
+# temp
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.log
 
-# Android
+# IDEs
+.vscode/
+.idea/
 *.iml
-.gradle/
-local.properties
 
-# Xcode
-*.xcworkspace
-!ios/Eduma.xcworkspace/contents.xcworkspacedata
+# macOS / Windows
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.*.local
 
 # Fastlane
 fastlane/report.xml
 fastlane/Preview.html
 
-# Certificates
-*.p12
-*.jks
-
-# JetBrains
-.idea/
-
-# VSCode
-.vscode/
+# Yarn v2+
+.yarn/*
+!.yarn/patches
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/versions
 
 # Misc
-coverage/
-report/
+*.orig
+*.bak
 
-# Ignore build artifacts from metro
-.expo/*
+# Android / Firebase config
+android/app/google-services.json
+android/google-services.json
 
-# Temporary files
-*.tmp
-*.swp
+# Local Android properties
+android/local.properties
+
+# iOS / Firebase config
+ios/GoogleService-Info.plist
+
+# Fastlane secret keys
+fastlane/*.p8
+
+# Purchase / license files
+purchase-code.txt
