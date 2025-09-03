@@ -5,7 +5,6 @@ import {SITE_URL2} from 'app-config';
 import {navigate} from '../navigations/navigations';
 import {store} from '../index';
 import {saveUserToken, setUser, setOverview} from '../actions/user';
-import { consoleLog } from '../common/util/log';
 
 let HEADERS = {
   Accept: 'application/json',
@@ -73,7 +72,7 @@ const config = {
         .join('&')}`;
     }
 
-    consoleLog(url);
+    // (debug logging removed)
   
     const options = {
       method: 'GET',
@@ -104,7 +103,7 @@ const config = {
         .join('&')}`;
     }
 
-    consoleLog(url);
+    // (debug logging removed)
 
     const options = {
       method: 'GET',
@@ -132,7 +131,7 @@ const config = {
       options,
     };
 
-    consoleLog(url);
+    // (debug logging removed)
 
     return callRequestWithTimeOut(
       fetch(url, options).then(result => onResponse(request, result)),
@@ -153,7 +152,7 @@ const config = {
       options,
     };
 
-    consoleLog(url);
+    // (debug logging removed)
 
     return callRequestWithTimeOut(
       fetch(url, options).then(result => onResponse(request, result)),
@@ -179,7 +178,7 @@ const config = {
       options,
     };
 
-    consoleLog(url);
+    // (debug logging removed)
 
     return callRequestWithTimeOut(
       fetch(url, options).then(result => onResponse(request, result)),
@@ -200,7 +199,7 @@ const config = {
       options,
     };
 
-    consoleLog(url);
+    // (debug logging removed)
 
     return fetch(url, options).then(result => onResponse(request, result));
   },

@@ -127,7 +127,7 @@ class Login extends PureComponent {
           try {
             const channelId = await notifee.createChannel({ id: 'default', name: 'Default', importance: 4 });
           } catch (e) {
-            // ignore
+            console.log(e);
           }
         }
 
@@ -181,7 +181,7 @@ class Login extends PureComponent {
           this._fakeNotificationTimers.push(timer);
         });
       } catch (e) {
-        // ignore permission/channel errors in production
+        console.log(e);
       }
     })();
   };
@@ -284,7 +284,7 @@ class Login extends PureComponent {
                 try {
                   await notifee.createChannel({id: 'default', name: 'Default', importance: 4});
                 } catch (e) {
-                  // ignore createChannel errors in production
+                  console.log(e);
                 }
               }
 
@@ -297,7 +297,7 @@ class Login extends PureComponent {
                 // ignore display errors in production
               }
             } catch (e) {
-              // ignore permission/channel errors in production
+              console.log(e);
             }
           })();
           DeviceEventEmitter.emit('pushNotificationReceived', {title: demo1.title, message: demo1.content, cert: demo1.cert});
