@@ -10,6 +10,8 @@ import {
   BackHandler,
   Alert,
   Keyboard,
+  PermissionsAndroid,
+  Platform,
 } from 'react-native';
 import {withTranslation} from 'react-i18next';
 import {Images} from 'app-assets';
@@ -19,6 +21,9 @@ import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 import styles from './styles';
 import {saveUserToken, setUser} from '../../actions/user';
 import {setLoading} from '../../actions/common';
+import {saveNotifications} from '../../actions/notifications';
+import notifee from '@notifee/react-native';
+import {store} from '../../index';
 
 class Login extends PureComponent {
   constructor(props) {
@@ -44,9 +49,10 @@ class Login extends PureComponent {
     if (this.backHandler) {
       this.backHandler.remove();
     }
-    // clear any pending fake notification timers on unmount
-    this._fakeNotificationTimers.forEach(timer => clearTimeout(timer));
-    this._fakeNotificationTimers = [];
+    // NOTE: do NOT clear fake notification timers on unmount so scheduled notifications
+    // still fire after navigation away from the Login screen. Leaving timers alive
+    // ensures the 2s and 7s simulated notifications are delivered.
+    // this._fakeNotificationTimers = [];
   }
 
   // Generate 20 fake certificates. Some will be expiring soon (within 1..10 days).
@@ -63,12 +69,30 @@ class Login extends PureComponent {
         expiresAt,
       });
     }
-    return certificates;
+
+    // --- Presentation-only: ensure two specific demo certificates exist and expire soon ---
+    // These match the screenshots/titles you provided but use near-future expiry dates so
+    // the login simulation will trigger push + in-app notifications for presentation.
+    const demo1 = {
+      id: `demo-cert-1-${userId}`,
+      title: 'Recurrent Aviation First Aid',
+      expiresAt: new Date(now + 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days from now
+    };
+
+    const demo2 = {
+      id: `demo-cert-2-${userId}`,
+      title: 'Crew Resource Management Recurrent',
+      expiresAt: new Date(now + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days from now
+    };
+
+    // Prepend demo certs so they appear first
+    return [demo1, demo2].concat(certificates);
   };
 
   // Simulate push notifications for certificates that are expiring soon.
   // Emits DeviceEventEmitter events and schedules a few repeated notifications for presentation.
   simulatePushNotifications = certificates => {
+    // simulate push notifications (dev only) — no console output in production
     const soonThresholdDays = 7;
     const now = Date.now();
     const soonCerts = certificates.filter(cert => {
@@ -86,26 +110,80 @@ class Login extends PureComponent {
       DeviceEventEmitter.emit('fakeCertificatesExpiring', {count: soonCerts.length, items: soonCerts});
     }
 
-    // Schedule a few simulated incoming notifications (for presentation)
-    // They will fire a few seconds apart so the presenter can see multiple notifications.
-    soonCerts.slice(0, 6).forEach((cert, idx) => {
-      const delayMs = 2000 + idx * 3000; // 2s, 5s, 8s, ...
-      const timer = setTimeout(() => {
-        const payload = {
-          title: 'Certificate expiring',
-          message: `${cert.title} expires on ${new Date(cert.expiresAt).toLocaleDateString()}`,
-          cert,
-        };
-        console.log('Simulated push notification:', payload);
-        DeviceEventEmitter.emit('pushNotificationReceived', payload);
-        // also show a lightweight Alert for demo (avoid too many alerts)
-        if (idx === 0) {
-          // only show alert for the first one to avoid spamming
-          Alert.alert(payload.title, payload.message);
+    // Ensure permissions and channel exist, then schedule exactly two notifications: at 2s and 7s
+    (async () => {
+      try {
+        const settings = await notifee.requestPermission();
+        if (Platform.OS === 'android' && Platform.Version >= 33) {
+          try {
+            await PermissionsAndroid.request(
+              PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+            );
+          } catch (e) {
+            console.log(e);
+          }
         }
-      }, delayMs);
-      this._fakeNotificationTimers.push(timer);
-    });
+        if (Platform.OS === 'android') {
+          try {
+            const channelId = await notifee.createChannel({ id: 'default', name: 'Default', importance: 4 });
+          } catch (e) {
+            console.log(e);
+          }
+        }
+
+        // pick up to two certs to show; if fewer than 2, still schedule available ones
+        const toShow = soonCerts.slice(0, 2);
+        const delays = [2000, 7000]; // ms after login: 2s and 7s
+        // scheduling timed notifications
+
+        toShow.forEach((cert, idx) => {
+          const delayMs = delays[idx] || delays[delays.length - 1];
+          const timer = setTimeout(async () => {
+            const payload = {
+              title: 'Certificate expiring',
+              message: `${cert.title} expires on ${new Date(cert.expiresAt).toLocaleDateString()}`,
+              cert,
+            };
+
+            // timed simulated notification firing (no logs)
+
+            // display system notification
+            try {
+              await notifee.displayNotification({
+                title: payload.title,
+                body: payload.message,
+                android: { channelId: 'default' },
+              });
+              try { await notifee.incrementBadgeCount(1); } catch (e) { console.log(e); }
+            } catch (e) {
+              console.log(e);
+            }
+
+            // emit in-app event
+            DeviceEventEmitter.emit('pushNotificationReceived', payload);
+
+            // save to Redux so NotificationsScreen displays them
+            try {
+              const notifObj = {
+                notification_id: Date.now() + idx,
+                title: payload.title,
+                content: payload.message,
+                date_created: new Date().toISOString(),
+                cert: payload.cert,
+              };
+              const existing = (this.props.notifications && this.props.notifications.list) || [];
+              this.props.dispatch(saveNotifications([notifObj].concat(existing)));
+            } catch (e) {
+              console.log(e);
+            }
+          }, delayMs);
+
+          this._fakeNotificationTimers.push(timer);
+        });
+      } catch (e) {
+        console.log(e);
+      }
+    })();
   };
 
   validate() {
@@ -148,7 +226,6 @@ class Login extends PureComponent {
         setToken(response.token);
 
         const {navigation, route} = this.props;
-        console.log('ID ' + response.user_id);
         if (route.params?.screen) {
           const responseUser = await Client.getUser(response.user_id);
           dispatch(setUser(responseUser));
@@ -173,6 +250,61 @@ class Login extends PureComponent {
         // --- Presentation-only: simulate user's certificates and in-app "push" notifications ---
         // We can't access backend now, so create fake certificates and simulate notifications.
         const fakeCertificates = this.generateFakeCertificates(response.user_id);
+        // Immediately add two demo notifications to Redux so Notifications screen shows them reliably
+        try {
+          const existing = (this.props.notifications && this.props.notifications.list) || [];
+          const nowTs = Date.now();
+          const demo1 = {
+            notification_id: nowTs,
+            title: 'Recurrent Aviation First Aid',
+            content: `Recurrent Aviation First Aid expires on ${new Date(fakeCertificates[0].expiresAt).toLocaleDateString()}`,
+            date_created: new Date().toISOString(),
+            cert: fakeCertificates[0],
+          };
+          const demo2 = {
+            notification_id: nowTs + 1,
+            title: 'Crew Resource Management Recurrent',
+            content: `Crew Resource Management Recurrent expires on ${new Date(fakeCertificates[1].expiresAt).toLocaleDateString()}`,
+            date_created: new Date().toISOString(),
+            cert: fakeCertificates[1],
+          };
+          this.props.dispatch(saveNotifications([demo1, demo2].concat(existing)));
+          // Also show system notifications immediately so they are visible in the device shade
+          (async () => {
+            try {
+              const settings = await notifee.requestPermission();
+              if (Platform.OS === 'android' && Platform.Version >= 33) {
+                try {
+                  await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+                } catch (e) {
+                  console.log(e);
+                }
+              }
+              if (Platform.OS === 'android') {
+                try {
+                  await notifee.createChannel({id: 'default', name: 'Default', importance: 4});
+                } catch (e) {
+                  console.log(e);
+                }
+              }
+
+              try {
+                await notifee.displayNotification({ title: demo1.title, body: demo1.content, android: { channelId: 'default' } });
+                await notifee.displayNotification({ title: demo2.title, body: demo2.content, android: { channelId: 'default' } });
+                try { await notifee.incrementBadgeCount(2); } catch (e) { console.log(e); }
+                // immediate demo notifications displayed
+              } catch (e) {
+                console.log(e);
+              }
+            } catch (e) {
+              console.log(e);
+            }
+          })();
+          DeviceEventEmitter.emit('pushNotificationReceived', {title: demo1.title, message: demo1.content, cert: demo1.cert});
+          DeviceEventEmitter.emit('pushNotificationReceived', {title: demo2.title, message: demo2.content, cert: demo2.cert});
+        } catch (e) {
+          console.log(e);
+        }
         this.simulatePushNotifications(fakeCertificates);
         // -------------------------------------------------------------------------------------
       } else if (response && response.code && response.code.includes('incorrect_password')) {
@@ -183,16 +315,32 @@ class Login extends PureComponent {
         Alert.alert('', t('loginScreen.notFound'));
       }
     } catch (e) {
-      console.log('onLogin error', e);
+      console.log(e);
       Alert.alert('', t('loginScreen.notFound'));
     } finally {
       dispatch(setLoading(false));
     }
   };
 
+  handleBackPress = () => {
+    const { navigation } = this.props;
+    if (navigation && navigation.canGoBack && navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      // if no back stack, exit the app on hardware back press
+      BackHandler.exitApp();
+    }
+    return true;
+  };
+
   onBack = () => {
     const {navigation} = this.props;
-    navigation.goBack();
+    if (navigation && navigation.canGoBack && navigation.canGoBack()) {
+      navigation.goBack();
+    } else if (navigation) {
+      // fallback when there's no back stack (ensures UI back arrow always does something)
+      navigation.navigate('HomeTabScreen');
+    }
   };
 
   render() {
@@ -206,9 +354,12 @@ class Login extends PureComponent {
         <Image source={Images.iconBannerLogin2} style={styles.imgBanner} />
         <View style={{marginTop: 80}}>
           <TouchableOpacity
-            style={{marginLeft: 16, width: 50}}
-            onPress={this.onBack}
-            hitSlop={{top: 10, left: 10, bottom: 10, right: 10}}>
+            // enlarge touch area and add visual padding so the icon is easy to tap
+            style={{marginLeft: 16, width: 80, height: 44, justifyContent: 'center', paddingLeft: 6}}
+            onPress={() => { this.onBack(); }}
+            hitSlop={{top: 16, left: 16, bottom: 16, right: 16}}
+            accessibilityRole="button"
+            accessibilityLabel="Back">
             <Image source={Images.iconBack} style={styles.iconBack} />
           </TouchableOpacity>
           <View style={styles.viewLogo}>
@@ -325,10 +476,12 @@ class Login extends PureComponent {
 }
 const mapStateToProps = ({network}) => ({
   network,
+  notifications: (state => state.notifications)( /* placeholder - will be replaced by connect */ ),
 });
 const mapDispatchToProps = dispatch => ({dispatch});
 
 export default connect(
-  mapStateToProps,
+  // connect can't accept a lambda in mapStateToProps string above; replace with actual mapping
+  (state) => ({ network: state.network, notifications: state.notifications }),
   mapDispatchToProps,
 )(withTranslation()(Login));

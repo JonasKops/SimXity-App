@@ -39,14 +39,31 @@ export default function Notifications({navigation}) {
   const [isScrollEnd, setIsScrollEnd] = useState(false);
 
   useEffect(() => {
-    setLastId(notifications?.lastID || 0);
+    // Keep local data in sync when Redux notifications change (e.g. simulated notifications dispatched)
+    const reduxList = notifications?.list || [];
 
-    if (notifications?.list.length > 0) {
-      saveNotifications(notifications?.list);
+    // shallow compare notification_id to avoid unnecessary state updates
+    const listsEqual = (() => {
+      if (!Array.isArray(reduxList) || !Array.isArray(data)) return false;
+      if (reduxList.length !== data.length) return false;
+      for (let i = 0; i < reduxList.length; i++) {
+        if (reduxList[i]?.notification_id !== data[i]?.notification_id) return false;
+      }
+      return true;
+    })();
+
+    if (reduxList.length > 0) {
+      if (!listsEqual) {
+        // update local list from Redux without re-dispatching (prevents loop)
+        setData(reduxList);
+      }
+    } else {
+      // only fetch from server when we don't already have notifications in Redux
+      fetchNotifications();
     }
 
-    fetchNotifications();
-  }, []);
+    setLastId(notifications?.lastID || 0);
+  }, [notifications]);
 
   useEffect(() => {
     (async () => {
@@ -189,7 +206,8 @@ export default function Notifications({navigation}) {
               <FlatList
                 contentContainerStyle={{paddingBottom: 30}}
                 removeClippedSubviews={false}
-                data={data}
+                // prefer Redux list when available to avoid stale local state
+                data={(notifications && notifications.list && notifications.list.length > 0) ? notifications.list : data}
                 renderItem={renderItem}
                 keyExtractor={(item, index) => index.toString()}
                 horizontal={false}

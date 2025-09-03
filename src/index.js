@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React, {useEffect} from 'react';
-import {Platform, StatusBar, DeviceEventEmitter} from 'react-native';
+import {Platform, StatusBar, DeviceEventEmitter, AppState} from 'react-native';
 import {PersistGate} from 'redux-persist/integration/react';
 import {NavigationContainer} from '@react-navigation/native';
 import {Provider} from 'react-redux';
@@ -21,6 +21,7 @@ import {CODE_PUSH} from './config';
 import {navigationRef, navigate} from './navigations/navigations';
 import NotificationModal from './component/common/notification-modal';
 import { registerFCMToken } from './common';
+import { checkCertificatesAndNotify } from './common/util/certificateNotifications';
 
 const {store, persistor} = configStore();
 
@@ -45,6 +46,13 @@ const MyApp = () => {
       }
 
       await onNotification();
+
+      // Run certificate check once at startup (if user logged in)
+      try {
+        await checkCertificatesAndNotify(store);
+      } catch (e) {
+        console.log(e);
+      }
     })();
 
     // Create Android notification channel for notifee
@@ -58,7 +66,7 @@ const MyApp = () => {
           });
         }
       } catch (e) {
-        console.log('createChannel error', e);
+        console.log(e);
       }
     })();
 
@@ -75,13 +83,25 @@ const MyApp = () => {
           notifee.incrementBadgeCount(1);
         } catch (e) {}
       } catch (e) {
-        console.log('onMessage error', e);
+        console.log(e);
       }
     });
+
+    // Listen for app state changes and trigger certificate check when app becomes active
+    const appStateListener = AppState.addEventListener?.('change', async nextState => {
+      if (nextState === 'active') {
+        try {
+          await checkCertificatesAndNotify(store);
+        } catch (e) {
+          console.log(e);
+        }
+      }
+    }) || null;
 
     return () => {
       // cleanup
       unsubscribeOnMessage && unsubscribeOnMessage();
+      if (appStateListener && appStateListener.remove) appStateListener.remove();
     };
   }, []);
 
@@ -106,6 +126,12 @@ const MyApp = () => {
 
       DeviceEventEmitter.addListener('notificationReceived', async () => {
         await fetchNotifications();
+        // also check certificates when a notification event occurs (login, register, etc.)
+        try {
+          await checkCertificatesAndNotify(store);
+        } catch (e) {
+          console.log(e);
+        }
       });
     }
   }
@@ -123,9 +149,19 @@ const MyApp = () => {
         });
 
         if (response?.success) {
-          await store.dispatch(
-            saveNotifications(response?.data?.notifications || []),
-          );
+          const serverNotifs = response?.data?.notifications || [];
+          const currentNotifs = store.getState().notifications?.list || [];
+          if (currentNotifs.length === 0) {
+            // no local notifications -> use server results
+            await store.dispatch(saveNotifications(serverNotifs));
+          } else if (serverNotifs.length > 0) {
+            // merge server with existing, preferring server at top
+            const merged = serverNotifs.concat(currentNotifs);
+            await store.dispatch(saveNotifications(merged));
+          } else {
+            // server returned empty and we have local notifications; keep local and do not overwrite
+            // keep existing local notifications when server returns empty
+          }
         }
       } catch (e) {
         console.log(e);
@@ -152,7 +188,7 @@ const MyApp = () => {
         try {
           await registerFCMToken();
         } catch (e) {
-          console.log('registerFCMToken on startup error', e);
+          console.log(e);
         }
 
         // Re-register when FCM token is refreshed
@@ -161,12 +197,19 @@ const MyApp = () => {
             try {
               await registerFCMToken();
             } catch (err) {
-              console.log('onTokenRefresh register error', err);
+              console.log(err);
             }
           });
         } catch (e) {
-          console.log('messaging onTokenRefresh setup error', e);
+          console.log(e);
         }
+      }
+
+      // run certificate check once when app finishes rehydration and user is present
+      try {
+        await checkCertificatesAndNotify(store);
+      } catch (e) {
+        console.log(e);
       }
     }
   };

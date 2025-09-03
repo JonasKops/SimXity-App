@@ -72,7 +72,7 @@ const config = {
         .join('&')}`;
     }
 
-    console.log(url);
+    console.debug(url);
   
     const options = {
       method: 'GET',
