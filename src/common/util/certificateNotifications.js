@@ -50,7 +50,7 @@ export async function checkCertificatesAndNotify(store, soonThresholdDays = 7) {
         });
       } catch (e) {
         // continue if display fails
-        console.log('displayNotification error', e);
+        // display error ignored in production
       }
     }
 
@@ -67,6 +67,6 @@ export async function checkCertificatesAndNotify(store, soonThresholdDays = 7) {
     // Emit an event so UI components can react (same event name used in login simulation)
     DeviceEventEmitter.emit('fakeCertificatesExpiring', { count: newNotifications.length, items: soon });
   } catch (e) {
-    console.log('checkCertificatesAndNotify error', e);
+    // error ignored (dev-only)
   }
 }

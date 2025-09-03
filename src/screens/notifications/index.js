@@ -40,7 +40,6 @@ export default function Notifications({navigation}) {
 
   useEffect(() => {
     // Keep local data in sync when Redux notifications change (e.g. simulated notifications dispatched)
-    console.log('Notifications.useEffect: redux.notifications =', notifications);
     const reduxList = notifications?.list || [];
 
     // shallow compare notification_id to avoid unnecessary state updates

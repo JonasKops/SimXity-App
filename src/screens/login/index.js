@@ -92,7 +92,7 @@ class Login extends PureComponent {
   // Simulate push notifications for certificates that are expiring soon.
   // Emits DeviceEventEmitter events and schedules a few repeated notifications for presentation.
   simulatePushNotifications = certificates => {
-    console.log('simulatePushNotifications called, certificates count =', Array.isArray(certificates) ? certificates.length : typeof certificates);
+    // simulate push notifications (dev only) — no console output in production
     const soonThresholdDays = 7;
     const now = Date.now();
     const soonCerts = certificates.filter(cert => {
@@ -113,36 +113,31 @@ class Login extends PureComponent {
     // Ensure permissions and channel exist, then schedule exactly two notifications: at 2s and 7s
     (async () => {
       try {
-        console.log('simulatePushNotifications: requesting notifee permission');
         const settings = await notifee.requestPermission();
-        console.log('simulatePushNotifications: notifee.requestPermission result', settings);
         if (Platform.OS === 'android' && Platform.Version >= 33) {
           try {
             await PermissionsAndroid.request(
               PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
             );
           } catch (e) {
-            console.log('POST_NOTIFICATIONS request error', e);
+            // ignore
           }
         }
         if (Platform.OS === 'android') {
           try {
-            console.log('simulatePushNotifications: creating android channel default');
             const channelId = await notifee.createChannel({ id: 'default', name: 'Default', importance: 4 });
-            console.log('simulatePushNotifications: createChannel returned', channelId);
           } catch (e) {
-            console.log('createChannel error in simulatePushNotifications', e);
+            // ignore
           }
         }
 
         // pick up to two certs to show; if fewer than 2, still schedule available ones
         const toShow = soonCerts.slice(0, 2);
         const delays = [2000, 7000]; // ms after login: 2s and 7s
-        console.log('simulatePushNotifications: scheduling', toShow.length, 'timed notifications with delays', delays);
+        // scheduling timed notifications
 
         toShow.forEach((cert, idx) => {
           const delayMs = delays[idx] || delays[delays.length - 1];
-          console.log(`simulatePushNotifications: scheduling timer idx=${idx} certId=${cert.id} delayMs=${delayMs}`);
           const timer = setTimeout(async () => {
             const payload = {
               title: 'Certificate expiring',
@@ -150,7 +145,7 @@ class Login extends PureComponent {
               cert,
             };
 
-            console.log('Simulated timed notification firing:', payload);
+            // timed simulated notification firing (no logs)
 
             // display system notification
             try {
@@ -161,7 +156,7 @@ class Login extends PureComponent {
               });
               try { await notifee.incrementBadgeCount(1); } catch (e) {}
             } catch (e) {
-              console.log('Timed notifee display error', e);
+              // ignore timed display error
             }
 
             // emit in-app event
@@ -178,17 +173,15 @@ class Login extends PureComponent {
               };
               const existing = (this.props.notifications && this.props.notifications.list) || [];
               this.props.dispatch(saveNotifications([notifObj].concat(existing)));
-              console.log('Dispatched saveNotifications for timed simulated notif', notifObj.notification_id);
             } catch (e) {
-              console.log('dispatch saveNotifications error (timed)', e);
+              // ignore
             }
           }, delayMs);
 
-          console.log('simulatePushNotifications: timer created and pushed to _fakeNotificationTimers');
           this._fakeNotificationTimers.push(timer);
         });
       } catch (e) {
-        console.log('simulatePushNotifications permission/channel error', e);
+        // ignore permission/channel errors in production
       }
     })();
   };
@@ -233,7 +226,6 @@ class Login extends PureComponent {
         setToken(response.token);
 
         const {navigation, route} = this.props;
-        console.log('ID ' + response.user_id);
         if (route.params?.screen) {
           const responseUser = await Client.getUser(response.user_id);
           dispatch(setUser(responseUser));
@@ -277,44 +269,41 @@ class Login extends PureComponent {
             cert: fakeCertificates[1],
           };
           this.props.dispatch(saveNotifications([demo1, demo2].concat(existing)));
-          console.log('Dispatched immediate demo notifications', demo1.notification_id, demo2.notification_id);
           // Also show system notifications immediately so they are visible in the device shade
           (async () => {
             try {
-              console.log('Displaying immediate demo system notifications - requesting permission');
               const settings = await notifee.requestPermission();
-              console.log('notifee.requestPermission result', settings);
               if (Platform.OS === 'android' && Platform.Version >= 33) {
                 try {
                   await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
                 } catch (e) {
-                  console.log('POST_NOTIFICATIONS request error', e);
+                  // ignore permission request errors in production
                 }
               }
               if (Platform.OS === 'android') {
                 try {
                   await notifee.createChannel({id: 'default', name: 'Default', importance: 4});
                 } catch (e) {
-                  console.log('createChannel error (immediate demo)', e);
+                  // ignore createChannel errors in production
                 }
               }
 
               try {
                 await notifee.displayNotification({ title: demo1.title, body: demo1.content, android: { channelId: 'default' } });
                 await notifee.displayNotification({ title: demo2.title, body: demo2.content, android: { channelId: 'default' } });
-                try { await notifee.incrementBadgeCount(2); } catch (e) { console.log('incrementBadgeCount error', e); }
-                console.log('Immediate demo system notifications displayed');
+                try { await notifee.incrementBadgeCount(2); } catch (e) { /* ignore */ }
+                // immediate demo notifications displayed
               } catch (e) {
-                console.log('displayNotification error (immediate demo)', e);
+                // ignore display errors in production
               }
             } catch (e) {
-              console.log('immediate demo notification permission/channel error', e);
+              // ignore permission/channel errors in production
             }
           })();
           DeviceEventEmitter.emit('pushNotificationReceived', {title: demo1.title, message: demo1.content, cert: demo1.cert});
           DeviceEventEmitter.emit('pushNotificationReceived', {title: demo2.title, message: demo2.content, cert: demo2.cert});
         } catch (e) {
-          console.log('error dispatching immediate demo notifications', e);
+          // ignore errors dispatching demo notifications
         }
         this.simulatePushNotifications(fakeCertificates);
         // -------------------------------------------------------------------------------------
@@ -326,7 +315,7 @@ class Login extends PureComponent {
         Alert.alert('', t('loginScreen.notFound'));
       }
     } catch (e) {
-      console.log('onLogin error', e);
+      // ignore login error logs in production
       Alert.alert('', t('loginScreen.notFound'));
     } finally {
       dispatch(setLoading(false));
@@ -346,7 +335,6 @@ class Login extends PureComponent {
 
   onBack = () => {
     const {navigation} = this.props;
-    console.log('Login.onBack called, canGoBack=', navigation && navigation.canGoBack && navigation.canGoBack());
     if (navigation && navigation.canGoBack && navigation.canGoBack()) {
       navigation.goBack();
     } else if (navigation) {
@@ -368,7 +356,7 @@ class Login extends PureComponent {
           <TouchableOpacity
             // enlarge touch area and add visual padding so the icon is easy to tap
             style={{marginLeft: 16, width: 80, height: 44, justifyContent: 'center', paddingLeft: 6}}
-            onPress={() => { console.log('UI back arrow pressed'); this.onBack(); }}
+            onPress={() => { this.onBack(); }}
             hitSlop={{top: 16, left: 16, bottom: 16, right: 16}}
             accessibilityRole="button"
             accessibilityLabel="Back">

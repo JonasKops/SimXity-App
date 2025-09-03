@@ -42,7 +42,7 @@ const MyApp = () => {
           SplashScreen.hide();
         }, 1000);
       } catch (e) {
-        console.log(e);
+        // ignore sync errors in production
       }
 
       await onNotification();
@@ -51,7 +51,7 @@ const MyApp = () => {
       try {
         await checkCertificatesAndNotify(store);
       } catch (e) {
-        console.log('startup certificate check error', e);
+        // ignore certificate check errors in production
       }
     })();
 
@@ -66,7 +66,7 @@ const MyApp = () => {
           });
         }
       } catch (e) {
-        console.log('createChannel error', e);
+        // ignore channel creation errors in production
       }
     })();
 
@@ -83,7 +83,7 @@ const MyApp = () => {
           notifee.incrementBadgeCount(1);
         } catch (e) {}
       } catch (e) {
-        console.log('onMessage error', e);
+        // ignore foreground message display errors
       }
     });
 
@@ -93,7 +93,7 @@ const MyApp = () => {
         try {
           await checkCertificatesAndNotify(store);
         } catch (e) {
-          console.log('appState certificate check error', e);
+          // ignore certificate check errors on app state change
         }
       }
     }) || null;
@@ -130,7 +130,7 @@ const MyApp = () => {
         try {
           await checkCertificatesAndNotify(store);
         } catch (e) {
-          console.log('notificationReceived certificate check error', e);
+          // ignore certificate check errors triggered by notification events
         }
       });
     }
@@ -150,24 +150,21 @@ const MyApp = () => {
 
         if (response?.success) {
           const serverNotifs = response?.data?.notifications || [];
-          console.log('fetchNotifications: server returned', serverNotifs.length, 'notifications');
           const currentNotifs = store.getState().notifications?.list || [];
           if (currentNotifs.length === 0) {
             // no local notifications -> use server results
             await store.dispatch(saveNotifications(serverNotifs));
-            console.log('fetchNotifications: saved server notifications to store');
           } else if (serverNotifs.length > 0) {
             // merge server with existing, preferring server at top
             const merged = serverNotifs.concat(currentNotifs);
             await store.dispatch(saveNotifications(merged));
-            console.log('fetchNotifications: merged server notifications with existing, total', merged.length);
           } else {
             // server returned empty and we have local notifications; keep local and do not overwrite
-            console.log('fetchNotifications: server returned empty; keeping existing local notifications', currentNotifs.length);
+            // keep existing local notifications when server returns empty
           }
         }
       } catch (e) {
-        console.log(e);
+        // ignore notification fetch errors in production
       }
     }
   }
@@ -177,7 +174,7 @@ const MyApp = () => {
       try {
         await store.dispatch(saveStatusNetwork(state.isConnected));
       } catch (e) {
-        console.log(e);
+        // ignore network status dispatch errors
       }
     });
 
@@ -191,7 +188,7 @@ const MyApp = () => {
         try {
           await registerFCMToken();
         } catch (e) {
-          console.log('registerFCMToken on startup error', e);
+          // ignore FCM registration errors
         }
 
         // Re-register when FCM token is refreshed
@@ -200,11 +197,11 @@ const MyApp = () => {
             try {
               await registerFCMToken();
             } catch (err) {
-              console.log('onTokenRefresh register error', err);
+              // ignore onTokenRefresh registration errors
             }
           });
         } catch (e) {
-          console.log('messaging onTokenRefresh setup error', e);
+          // ignore messaging onTokenRefresh setup errors
         }
       }
 
@@ -212,7 +209,7 @@ const MyApp = () => {
       try {
         await checkCertificatesAndNotify(store);
       } catch (e) {
-        console.log('onBeforeLift certificate check error', e);
+        // ignore certificate check errors on before lift
       }
     }
   };
