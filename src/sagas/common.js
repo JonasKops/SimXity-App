@@ -5,6 +5,7 @@
 import { put } from 'redux-saga/effects';
 import { ProgressBar } from 'app-component';
 import { setLoading } from '../actions/common';
+import { consoleLog } from '../common/util/log';
 
 // eslint-disable-next-line import/prefer-default-export
 export function* showLoading(actions) {
@@ -14,8 +15,8 @@ export function* showLoading(actions) {
   try {
     const ts = new Date().toISOString();
     const stack = (new Error().stack || '').split('\n').slice(2, 8).join('\n');
-    // Keep logs concise
-    console.log(`[showLoading] ${ts} loading=${loading} isNative=${isNative}\n${stack}`);
+    // Dev-only log
+    consoleLog(`[showLoading] ${ts} loading=${loading} isNative=${isNative}\n${stack}`);
   } catch (e) {
     // ignore logging errors
   }
