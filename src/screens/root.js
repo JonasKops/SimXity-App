@@ -10,11 +10,13 @@ const App = () => {
   const common = useSelector(state => state.common);
 
   return (
-    <View style={styles.container}>
+    // allow touches to reach system overlays (LogBox) and other top-layer UI
+    <View style={styles.container} pointerEvents="box-none">
       <AppNavigator />
 
       {common.loading && (
-        <View style={styles.overlay}>
+        // allow touches to pass through so the UI remains interactive even if loading gets stuck
+        <View style={styles.overlay} pointerEvents="none">
           <ActivityIndicator size="large" color="white" />
         </View>
       )}
@@ -30,7 +32,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 0,
+    zIndex: 9999,
     ...StyleSheet.absoluteFillObject,
   },
 });
