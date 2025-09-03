@@ -72,7 +72,7 @@ const config = {
         .join('&')}`;
     }
 
-    // (debug logging removed)
+    console.debug(url);
   
     const options = {
       method: 'GET',
@@ -103,7 +103,7 @@ const config = {
         .join('&')}`;
     }
 
-    // (debug logging removed)
+    console.debug(url);
 
     const options = {
       method: 'GET',
@@ -131,7 +131,7 @@ const config = {
       options,
     };
 
-    // (debug logging removed)
+    console.debug(url);
 
     return callRequestWithTimeOut(
       fetch(url, options).then(result => onResponse(request, result)),
@@ -152,7 +152,7 @@ const config = {
       options,
     };
 
-    // (debug logging removed)
+    console.debug(url);
 
     return callRequestWithTimeOut(
       fetch(url, options).then(result => onResponse(request, result)),
@@ -178,7 +178,7 @@ const config = {
       options,
     };
 
-    // (debug logging removed)
+    console.debug(url);
 
     return callRequestWithTimeOut(
       fetch(url, options).then(result => onResponse(request, result)),
@@ -199,7 +199,7 @@ const config = {
       options,
     };
 
-    // (debug logging removed)
+    console.debug(url);
 
     return fetch(url, options).then(result => onResponse(request, result));
   },

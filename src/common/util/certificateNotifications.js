@@ -49,15 +49,14 @@ export async function checkCertificatesAndNotify(store, soonThresholdDays = 7) {
           android: { channelId: 'default' },
         });
       } catch (e) {
-        // continue if display fails
-        // display error ignored in production
+        console.log(e);
       }
     }
 
     try {
       notifee.incrementBadgeCount(newNotifications.length);
     } catch (e) {
-      // ignore
+      console.log(e);
     }
 
     // Merge with existing notifications in store (prepend new)
@@ -67,6 +66,6 @@ export async function checkCertificatesAndNotify(store, soonThresholdDays = 7) {
     // Emit an event so UI components can react (same event name used in login simulation)
     DeviceEventEmitter.emit('fakeCertificatesExpiring', { count: newNotifications.length, items: soon });
   } catch (e) {
-    // error ignored (dev-only)
+    console.log(e);
   }
 }

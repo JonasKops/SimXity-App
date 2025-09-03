@@ -120,7 +120,7 @@ class Login extends PureComponent {
               PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
             );
           } catch (e) {
-            // ignore
+            console.log(e);
           }
         }
         if (Platform.OS === 'android') {
@@ -154,9 +154,9 @@ class Login extends PureComponent {
                 body: payload.message,
                 android: { channelId: 'default' },
               });
-              try { await notifee.incrementBadgeCount(1); } catch (e) {}
+              try { await notifee.incrementBadgeCount(1); } catch (e) { console.log(e); }
             } catch (e) {
-              // ignore timed display error
+              console.log(e);
             }
 
             // emit in-app event
@@ -174,7 +174,7 @@ class Login extends PureComponent {
               const existing = (this.props.notifications && this.props.notifications.list) || [];
               this.props.dispatch(saveNotifications([notifObj].concat(existing)));
             } catch (e) {
-              // ignore
+              console.log(e);
             }
           }, delayMs);
 
@@ -277,7 +277,7 @@ class Login extends PureComponent {
                 try {
                   await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
                 } catch (e) {
-                  // ignore permission request errors in production
+                  console.log(e);
                 }
               }
               if (Platform.OS === 'android') {
@@ -291,10 +291,10 @@ class Login extends PureComponent {
               try {
                 await notifee.displayNotification({ title: demo1.title, body: demo1.content, android: { channelId: 'default' } });
                 await notifee.displayNotification({ title: demo2.title, body: demo2.content, android: { channelId: 'default' } });
-                try { await notifee.incrementBadgeCount(2); } catch (e) { /* ignore */ }
+                try { await notifee.incrementBadgeCount(2); } catch (e) { console.log(e); }
                 // immediate demo notifications displayed
               } catch (e) {
-                // ignore display errors in production
+                console.log(e);
               }
             } catch (e) {
               console.log(e);
@@ -303,7 +303,7 @@ class Login extends PureComponent {
           DeviceEventEmitter.emit('pushNotificationReceived', {title: demo1.title, message: demo1.content, cert: demo1.cert});
           DeviceEventEmitter.emit('pushNotificationReceived', {title: demo2.title, message: demo2.content, cert: demo2.cert});
         } catch (e) {
-          // ignore errors dispatching demo notifications
+          console.log(e);
         }
         this.simulatePushNotifications(fakeCertificates);
         // -------------------------------------------------------------------------------------
@@ -315,7 +315,7 @@ class Login extends PureComponent {
         Alert.alert('', t('loginScreen.notFound'));
       }
     } catch (e) {
-      // ignore login error logs in production
+      console.log(e);
       Alert.alert('', t('loginScreen.notFound'));
     } finally {
       dispatch(setLoading(false));

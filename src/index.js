@@ -42,7 +42,7 @@ const MyApp = () => {
           SplashScreen.hide();
         }, 1000);
       } catch (e) {
-        // ignore sync errors in production
+        console.log(e);
       }
 
       await onNotification();
@@ -51,7 +51,7 @@ const MyApp = () => {
       try {
         await checkCertificatesAndNotify(store);
       } catch (e) {
-        // ignore certificate check errors in production
+        console.log(e);
       }
     })();
 
@@ -66,7 +66,7 @@ const MyApp = () => {
           });
         }
       } catch (e) {
-        // ignore channel creation errors in production
+        console.log(e);
       }
     })();
 
@@ -83,7 +83,7 @@ const MyApp = () => {
           notifee.incrementBadgeCount(1);
         } catch (e) {}
       } catch (e) {
-        // ignore foreground message display errors
+        console.log(e);
       }
     });
 
@@ -93,7 +93,7 @@ const MyApp = () => {
         try {
           await checkCertificatesAndNotify(store);
         } catch (e) {
-          // ignore certificate check errors on app state change
+          console.log(e);
         }
       }
     }) || null;
@@ -130,7 +130,7 @@ const MyApp = () => {
         try {
           await checkCertificatesAndNotify(store);
         } catch (e) {
-          // ignore certificate check errors triggered by notification events
+          console.log(e);
         }
       });
     }
@@ -164,7 +164,7 @@ const MyApp = () => {
           }
         }
       } catch (e) {
-        // ignore notification fetch errors in production
+        console.log(e);
       }
     }
   }
@@ -174,7 +174,7 @@ const MyApp = () => {
       try {
         await store.dispatch(saveStatusNetwork(state.isConnected));
       } catch (e) {
-        // ignore network status dispatch errors
+        console.log(e);
       }
     });
 
@@ -188,7 +188,7 @@ const MyApp = () => {
         try {
           await registerFCMToken();
         } catch (e) {
-          // ignore FCM registration errors
+          console.log(e);
         }
 
         // Re-register when FCM token is refreshed
@@ -197,11 +197,11 @@ const MyApp = () => {
             try {
               await registerFCMToken();
             } catch (err) {
-              // ignore onTokenRefresh registration errors
+              console.log(err);
             }
           });
         } catch (e) {
-          // ignore messaging onTokenRefresh setup errors
+          console.log(e);
         }
       }
 
@@ -209,7 +209,7 @@ const MyApp = () => {
       try {
         await checkCertificatesAndNotify(store);
       } catch (e) {
-        // ignore certificate check errors on before lift
+        console.log(e);
       }
     }
   };
