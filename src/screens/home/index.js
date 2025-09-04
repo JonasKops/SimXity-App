@@ -7,6 +7,7 @@ import {
   Text,
   View,
   TouchableOpacity,
+  Dimensions,
 } from 'react-native';
 import {withTranslation} from 'react-i18next';
 import {Images} from 'app-assets';
@@ -21,6 +22,8 @@ import {Client} from 'app-api';
 import styles from './styles';
 import SkeletonFlatList from '../../component/common/skeleton/flatlist';
 import SkeletonCategory from '../../component/common/skeleton/category';
+
+const deviceWidth = Dimensions.get('window').width;
 
 class Home extends PureComponent {
   constructor(props) {
@@ -38,6 +41,13 @@ class Home extends PureComponent {
     };
 
     this.eventListener = null;
+
+    // Static sample pilots (would normally come from API or redux)
+    this.topPilots = [
+      {id: 4, name: 'Cloud Walker', airportCount: 120},
+      {id: 2, name: 'Captain Sky', airportCount: 85},
+      {id: 6, name: 'Sky Explorer', airportCount: 67},
+    ];
   }
 
   async componentDidMount() {
@@ -120,6 +130,21 @@ class Home extends PureComponent {
     this.setState({refreshing: false});
   };
 
+  getRankByAirports = count => {
+    if (count >= 100) return {level: 'World-class Pilot', color: '#FF6B6B'};
+    if (count >= 50) return {level: 'Experienced Pilot', color: '#4ECDC4'};
+    if (count >= 25) return {level: 'Advanced Pilot', color: '#45B7D1'};
+    if (count >= 10) return {level: 'Junior Pilot', color: '#96CEB4'};
+    return {level: 'Rookie Pilot', color: '#FFEAA7'};
+  };
+
+  getMedal = rank => {
+    if (rank === 1) return {emoji: '🥇'};
+    if (rank === 2) return {emoji: '🥈'};
+    if (rank === 3) return {emoji: '🥉'};
+    return {emoji: '🏅'};
+  };
+
   render() {
     const {
       dataInstructor,
@@ -135,6 +160,8 @@ class Home extends PureComponent {
     } = this.state;
 
     const {t, navigation, user, notifications} = this.props;
+
+    const isTablet = deviceWidth >= 768;
 
     return (
       <View style={styles.container}>
@@ -188,7 +215,7 @@ class Home extends PureComponent {
               }}>
               <TouchableOpacity
                 onPress={() => navigation.navigate('ProfileStackScreen')}
-                style={{flexDirection: 'row'}}>
+                style={{flexDirection: 'row', alignItems: 'center'}}>
                 <Image
                   style={styles.avatar}
                   source={{
@@ -199,9 +226,69 @@ class Home extends PureComponent {
                 />
                 <View style={{marginLeft: 15}}>
                   <Text style={styles.fullname}>{user?.info?.name}</Text>
-                  <Text style={styles.email}>{user?.info?.email}</Text>
+                  {user?.info?.email && (
+                    <Text style={styles.email}>{user.info.email}</Text>
+                  )}
                 </View>
               </TouchableOpacity>
+            </View>
+          )}
+
+          {user?.token && (
+            <View style={isTablet ? styles.topPilotsRowTablet : styles.topPilotsRow}>
+              {this.topPilots.slice(0, 3).map((p, idx) => {
+                const rankInfo = this.getRankByAirports(p.airportCount);
+                const medal = this.getMedal(idx + 1);
+                const level = rankInfo.level;
+                const shortLabel = level.startsWith('World')
+                  ? 'World-class'
+                  : level.startsWith('Experienced')
+                  ? 'Experienced'
+                  : level.startsWith('Advanced')
+                  ? 'Advanced'
+                  : level.startsWith('Junior')
+                  ? 'Junior'
+                  : 'Rookie';
+                const pillColor = level.startsWith('World')
+                  ? '#F46647'
+                  : level.startsWith('Experienced')
+                  ? '#4ECDC4'
+                  : level.startsWith('Advanced')
+                  ? '#45B7D1'
+                  : level.startsWith('Junior')
+                  ? '#96CEB4'
+                  : '#FFEAA7';
+
+                if (isTablet) {
+                  return (
+                    <TouchableOpacity key={p.id} style={styles.pilotCardInline} onPress={() => navigation.navigate('LeaderboardTab')} activeOpacity={0.8}>
+                      <View style={styles.pilotInfo}>
+                        <Text style={styles.medalEmoji}>{medal.emoji}</Text>
+                        <View style={styles.pilotTextWrap}>
+                          <Text style={styles.pilotNameInline} numberOfLines={1}>{p.name}</Text>
+                          <Text style={styles.pilotAirportsInline}>{p.airportCount} Airports</Text>
+                        </View>
+                      </View>
+                      <View style={[styles.rankBadge,{backgroundColor: pillColor}]}> 
+                        <Text style={styles.rankBadgeText}>{shortLabel}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                }
+
+                return (
+                  <TouchableOpacity key={p.id} style={styles.pilotCardVertical} onPress={() => navigation.navigate('LeaderboardTab')} activeOpacity={0.85}>
+                    <View style={styles.medalStack}>
+                      <Text style={styles.medalEmojiLarge}>{medal.emoji}</Text>
+                    </View>
+                    <Text style={styles.pilotNameCard} numberOfLines={1}>{p.name}</Text>
+                    <Text style={styles.pilotAirportsCard}>{p.airportCount} Airports</Text>
+                    <View style={[styles.rankPillCard, {backgroundColor: pillColor}]}> 
+                      <Text style={styles.rankPillCardText}>{shortLabel}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           )}
 
@@ -311,10 +398,10 @@ class Home extends PureComponent {
                     id: dataOverview.id,
                   })
                 }
-                style={styles.container}>
+                style={{marginTop: 16}}>
                 <Text
                   numberOfLines={1}
-                  style={[styles.overTitle, {marginTop: 30}]}>
+                  style={styles.overTitle}>
                   {dataOverview?.name}
                 </Text>
                 <Text style={styles.txt1}>
@@ -326,27 +413,6 @@ class Home extends PureComponent {
               </TouchableOpacity>
             </View>
           )}
-          <View style={styles.viewList}>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('LeaderboardTab')}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginRight: 15,
-              }}>
-              <Text style={styles.titleList}>{t('home.category')}</Text>
-            </TouchableOpacity>
-            {dataCate && dataCate.length > 0 && (
-              <LearnToday
-                navigation={navigation}
-                contentContainerStyle={{paddingHorizontal: 16}}
-                data={dataCate}
-                horizontal
-              />
-            )}
-            {loading1 && <SkeletonCategory />}
-          </View>
 
           {topCourseWithStudent && topCourseWithStudent.length > 0 && (
             <View style={styles.viewList}>
