@@ -49,7 +49,7 @@ class CoursesDetails extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      activeSections: [0],
+      activeSections: [],
       review: null,
       reviewMessage: '',
       isWishlist: false,
@@ -847,12 +847,14 @@ class CoursesDetails extends Component {
             {data && data.sections.length > 0 ? (
               <Accordion
                 sections={data.sections}
-                underlayColor="transpation"
+                underlayColor="transparent"
                 activeSections={activeSections}
                 renderHeader={this.renderHeaderSession}
                 renderContent={this.renderContent}
                 onChange={value => {
-                  this.setState({activeSections: value});
+                  // Accordion sometimes emits duplicate toggle; de-dup and coerce to array
+                  const next = Array.isArray(value) ? value : [value];
+                  this.setState({activeSections: next});
                 }}
               />
             ) : (
