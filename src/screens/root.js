@@ -15,8 +15,8 @@ const App = () => {
       <AppNavigator />
 
       {common.loading && (
-        // allow touches to pass through so the UI remains interactive even if loading gets stuck
-        <View style={styles.overlay} pointerEvents="none">
+        // block touches beneath overlay while loading
+        <View style={styles.overlay} pointerEvents="auto">
           <ActivityIndicator size="large" color="white" />
         </View>
       )}
@@ -27,8 +27,6 @@ const App = () => {
 const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: '#fff'},
   overlay: {
-    width,
-    height,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
     alignItems: 'center',
     justifyContent: 'center',
